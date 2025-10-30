@@ -1,67 +1,88 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
 <title>Controle de Saídas - Balança Felizola</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500&display=swap" rel="stylesheet">
 
 <style>
-:root{
+:root {
   --bg:#0b0f19;--card:#151d2f;--text:#f8fafc;--accent:#b8860b;--muted:#94a3b8;
 }
-body{margin:0;font-family:Inter;background:var(--bg);color:var(--text);
-     text-align:center;padding:20px;}
-h2{color:var(--accent);margin-bottom:10px;}
-#video{width:100%;max-width:360px;border-radius:12px;margin-top:10px;
-       box-shadow:0 0 8px #000;display:none;}
-button{background:var(--accent);border:none;border-radius:8px;color:white;
-        padding:10px 20px;font-weight:600;margin-top:10px;}
-.card{background:var(--card);padding:20px;border-radius:12px;margin-top:15px;}
-#status{margin-top:10px;color:var(--accent);}
+body {
+  margin:0; font-family:Inter, sans-serif;
+  background:var(--bg); color:var(--text);
+  text-align:center; padding:20px;
+}
+h2 { color:var(--accent); margin-bottom:10px; }
+#video {
+  width:100%; max-width:380px; border-radius:12px;
+  margin-top:10px; box-shadow:0 0 8px #000;
+  display:none;
+}
+button {
+  background:var(--accent); border:none;
+  border-radius:8px; color:white;
+  padding:12px 22px; font-weight:600;
+  margin-top:12px; font-size:16px;
+}
+.card {
+  background:var(--card);
+  padding:20px; border-radius:12px; margin-top:20px;
+}
+#status { margin-top:12px; color:var(--accent); }
 </style>
 </head>
 
 <body>
 <h2>📷 Leitor de Etiquetas - Balança Felizola</h2>
 
-<p id="status">Toque abaixo para abrir a câmera:</p>
+<p id="status">Toque no botão abaixo para abrir a câmera:</p>
 <button id="btnAbrir">🎥 Abrir Câmera</button>
+
+<!-- Vídeo com autoplay, playsinline e muted obrigatórios para Android/iOS -->
 <video id="video" autoplay playsinline muted></video>
 
 <div id="info" class="card" style="display:none;">
   <h3 id="nome"></h3>
   <p>Peso: <span id="peso"></span> kg</p>
   <p>Preço: R$ <span id="preco"></span></p>
-  <button onclick="registrarSaida()">Registrar Saída</button>
+  <button id="btnRegistrar">Registrar Saída</button>
 </div>
 
 <script type="module">
-// Importa leitor de códigos de barras ZXing
+// Importa leitor de código de barras (ZXing)
 import { BrowserMultiFormatReader } 
   from "https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/esm/index.min.js";
 
 const video   = document.getElementById("video");
 const status  = document.getElementById("status");
-const btn     = document.getElementById("btnAbrir");
+const btnAbrir= document.getElementById("btnAbrir");
+const btnReg  = document.getElementById("btnRegistrar");
 const infoBox = document.getElementById("info");
+
 let codeReader = new BrowserMultiFormatReader();
 let produtoAtual = null;
 
-// 🔹 Abre a câmera apenas após clique do usuário (necessário no iPhone)
-btn.addEventListener("click", iniciarCamera);
+// 🔹 Inicia a câmera após clique (obrigatório no Android e iPhone)
+btnAbrir.addEventListener("click", iniciarCamera);
 
 async function iniciarCamera() {
   try {
     status.innerText = "Solicitando permissão da câmera...";
-    btn.style.display="none";
+    btnAbrir.style.display="none";
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
+      video: {
+        facingMode: { ideal: "environment" }, // câmera traseira
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
       audio: false
     });
 
-    // Configuração obrigatória no iPhone
+    // Configura vídeo
     video.srcObject = stream;
     video.setAttribute("playsinline", "true");
     video.muted = true;
@@ -70,15 +91,15 @@ async function iniciarCamera() {
     video.style.display = "block";
     status.innerText = "Câmera ativa ✅";
     iniciarLeitura();
-  } 
-  catch (e) {
-    console.error("Erro ao acessar câmera:", e);
+
+  } catch (e) {
+    console.error("Erro câmera:", e);
     status.innerHTML = `
       ⚠️ Não foi possível acessar a câmera.<br>
-      Vá em <b>Ajustes › Safari › Câmera › Permitir</b>.<br><br>
+      Verifique se o navegador tem permissão.<br><br>
       Erro: ${e.name} - ${e.message}
     `;
-    btn.style.display="block";
+    btnAbrir.style.display="block";
   }
 }
 
@@ -90,33 +111,39 @@ function iniciarLeitura() {
       console.log("Código lido:", codigo);
       status.innerText = "Código detectado: " + codigo;
       await buscarProduto(codigo);
-      codeReader.reset(); // Para leitura única. Remova para leitura contínua
+      codeReader.reset(); // remove se quiser leitura contínua
     }
   });
 }
 
-// 🔹 Busca o produto (chama seu backend /api/ler)
+// 🔹 Busca o produto no backend
 async function buscarProduto(codigo){
   try {
     const res = await fetch(`/api/ler?codigo=${codigo}`);
     const data = await res.json();
-    if(data.nome){
+
+    if (data.nome) {
       produtoAtual = data;
       infoBox.style.display="block";
-      document.getElementById("nome").innerText=data.nome;
-      document.getElementById("peso").innerText=data.pesoKg.toFixed(3);
-      document.getElementById("preco").innerText=data.valor.toFixed(2);
+      document.getElementById("nome").innerText = data.nome;
+      document.getElementById("peso").innerText = data.pesoKg.toFixed(3);
+      document.getElementById("preco").innerText = data.valor.toFixed(2);
     } else {
       alert("Produto não encontrado");
+      status.innerText = "Aguardando novo código...";
+      iniciarLeitura();
     }
+
   } catch (err) {
     alert("Erro ao buscar produto: " + err);
   }
 }
 
-// 🔹 Envia saída registrada ao seu backend /api/registrar
+// 🔹 Registra a saída e envia para o backend / planilha
+btnReg.addEventListener("click", registrarSaida);
+
 async function registrarSaida(){
-  if(!produtoAtual) return;
+  if (!produtoAtual) return;
   try {
     const resp = await fetch("/api/registrar", {
       method:"POST",
@@ -124,13 +151,20 @@ async function registrarSaida(){
       body:JSON.stringify(produtoAtual)
     });
     const data = await resp.json();
-    alert("✅ Saída registrada!");
+
+    if (data.ok) {
+      alert("✅ Saída registrada!");
+    } else {
+      alert("⚠️ Falha ao registrar saída!");
+    }
+
     infoBox.style.display="none";
-    produtoAtual=null;
-    status.innerText="Pronto para novo código.";
+    produtoAtual = null;
+    status.innerText = "Pronto para novo código.";
     iniciarLeitura();
+
   } catch (err) {
-    alert("Erro ao registrar saída: " + err);
+    alert("Erro ao registrar: " + err);
   }
 }
 </script>

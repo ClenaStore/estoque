@@ -3,51 +3,88 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Controle de Saídas Felizola</title>
+<title>Controle de Saídas - Balança Felizola</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0b0f19;--card:#151d2f;--text:#f8fafc;--accent:#b8860b;
 }
 body{margin:0;font-family:Inter;background:var(--bg);color:var(--text);text-align:center;padding:20px}
-h2{color:var(--accent)}
-input{padding:10px;width:80%;max-width:300px;border:none;border-radius:8px;text-align:center;margin-top:15px;font-size:18px}
+h2{color:var(--accent);margin-bottom:10px}
+#video{width:100%;max-width:360px;border-radius:12px;margin-top:10px;box-shadow:0 0 8px #000}
 .card{background:var(--card);padding:20px;border-radius:12px;margin-top:15px}
-button{background:var(--accent);color:white;border:none;padding:10px 20px;border-radius:8px;font-weight:600;margin-top:10px}
+button{background:var(--accent);border:none;border-radius:8px;color:white;padding:10px 20px;font-weight:600;margin-top:10px}
 </style>
 </head>
 <body>
-<h2>📦 Controle de Saídas</h2>
-<input id="codigo" placeholder="Escaneie ou digite o código">
+<h2>📷 Leitor de Etiquetas - Balança Felizola</h2>
+<video id="video" autoplay playsinline></video>
+
 <div id="info" class="card" style="display:none;">
   <h3 id="nome"></h3>
   <p>Peso: <span id="peso"></span> kg</p>
   <p>Preço: R$ <span id="preco"></span></p>
-  <button onclick="registrar()">Registrar Saída</button>
+  <button onclick="registrarSaida()">Registrar Saída</button>
 </div>
 
-<script>
-let produto = null;
+<script type="module">
+import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/esm/index.min.js";
 
-document.getElementById("codigo").addEventListener("change", async (e)=>{
-  const codigo = e.target.value.trim();
-  e.target.value="";
-  const r = await fetch(`/api/ler?codigo=${codigo}`);
-  const d = await r.json();
-  if(d.nome){
-    produto=d;
-    document.getElementById("info").style.display="block";
-    document.getElementById("nome").innerText=d.nome;
-    document.getElementById("peso").innerText=d.pesoKg.toFixed(3);
-    document.getElementById("preco").innerText=d.valor.toFixed(2);
-  }else alert("Produto não encontrado");
-});
+const video = document.getElementById("video");
+const infoBox = document.getElementById("info");
+let produtoAtual = null;
 
-async function registrar(){
-  await fetch("/api/registrar",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(produto)});
-  alert("Saída registrada!");
-  document.getElementById("info").style.display="none";
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" } // usa a câmera traseira
+    });
+    video.srcObject = stream;
+    lerCodigo(stream);
+  } catch (e) {
+    alert("⚠️ Erro ao acessar a câmera: " + e.message);
+  }
 }
+
+async function lerCodigo(stream) {
+  const codeReader = new BrowserMultiFormatReader();
+  codeReader.decodeFromVideoDevice(null, 'video', async (result, err) => {
+    if (result) {
+      const codigo = result.getText().trim();
+      console.log("Código lido:", codigo);
+      await buscarProduto(codigo);
+      codeReader.reset(); // para leitura contínua, remova esta linha
+    }
+  });
+}
+
+async function buscarProduto(codigo){
+  const res = await fetch(`/api/ler?codigo=${codigo}`);
+  const data = await res.json();
+  if(data.nome){
+    produtoAtual = data;
+    infoBox.style.display="block";
+    document.getElementById("nome").innerText=data.nome;
+    document.getElementById("peso").innerText=data.pesoKg.toFixed(3);
+    document.getElementById("preco").innerText=data.valor.toFixed(2);
+  } else {
+    alert("Produto não encontrado");
+  }
+}
+
+async function registrarSaida(){
+  if(!produtoAtual) return;
+  await fetch("/api/registrar",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(produtoAtual)
+  });
+  alert("✅ Saída registrada!");
+  infoBox.style.display="none";
+  produtoAtual=null;
+}
+
+startCamera();
 </script>
 </body>
 </html>

@@ -14,11 +14,13 @@ h2{color:var(--accent);margin-bottom:10px}
 #video{width:100%;max-width:360px;border-radius:12px;margin-top:10px;box-shadow:0 0 8px #000}
 .card{background:var(--card);padding:20px;border-radius:12px;margin-top:15px}
 button{background:var(--accent);border:none;border-radius:8px;color:white;padding:10px 20px;font-weight:600;margin-top:10px}
+#status{margin-top:10px;color:var(--accent);}
 </style>
 </head>
 <body>
 <h2>📷 Leitor de Etiquetas - Balança Felizola</h2>
-<video id="video" autoplay playsinline></video>
+<video id="video" autoplay playsinline muted></video>
+<p id="status">Aguardando permissão da câmera...</p>
 
 <div id="info" class="card" style="display:none;">
   <h3 id="nome"></h3>
@@ -31,29 +33,40 @@ button{background:var(--accent);border:none;border-radius:8px;color:white;paddin
 import { BrowserMultiFormatReader } from "https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/esm/index.min.js";
 
 const video = document.getElementById("video");
+const status = document.getElementById("status");
 const infoBox = document.getElementById("info");
 let produtoAtual = null;
+let codeReader;
 
-async function startCamera() {
+async function solicitarPermissaoCamera() {
   try {
+    // Solicita explicitamente permissão no iOS
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" } // usa a câmera traseira
+      video: { facingMode: { exact: "environment" } }
     });
     video.srcObject = stream;
-    lerCodigo(stream);
+    video.setAttribute("playsinline", true); // necessário no iOS
+    video.play();
+    iniciarLeitura();
+    status.innerText = "Câmera ativa ✅";
   } catch (e) {
-    alert("⚠️ Erro ao acessar a câmera: " + e.message);
+    status.innerHTML = `
+      ⚠️ Não foi possível acessar a câmera.<br>
+      Vá em <b>Ajustes › Safari › Câmera › Permitir</b>.<br><br>
+      Erro: ${e.message}
+    `;
   }
 }
 
-async function lerCodigo(stream) {
-  const codeReader = new BrowserMultiFormatReader();
+async function iniciarLeitura() {
+  codeReader = new BrowserMultiFormatReader();
   codeReader.decodeFromVideoDevice(null, 'video', async (result, err) => {
     if (result) {
       const codigo = result.getText().trim();
       console.log("Código lido:", codigo);
+      status.innerText = "Código detectado: " + codigo;
       await buscarProduto(codigo);
-      codeReader.reset(); // para leitura contínua, remova esta linha
+      codeReader.reset(); // para uma leitura por vez
     }
   });
 }
@@ -82,9 +95,12 @@ async function registrarSaida(){
   alert("✅ Saída registrada!");
   infoBox.style.display="none";
   produtoAtual=null;
+  status.innerText = "Pronto para novo código.";
+  iniciarLeitura();
 }
 
-startCamera();
+// Solicita permissão ao abrir
+solicitarPermissaoCamera();
 </script>
 </body>
 </html>

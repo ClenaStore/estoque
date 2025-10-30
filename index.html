@@ -5,49 +5,97 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Saídas - Balança Felizola</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
 <style>
-:root{
-  --bg:#0b0f19;--card:#151d2f;--text:#f8fafc;
-  --accent:#b8860b;--muted:#94a3b8;
+:root {
+  --bg: #0b0f19;
+  --card: #151d2f;
+  --accent: #b8860b;
+  --text: #f8fafc;
+  --muted: #94a3b8;
 }
-body{
-  margin:0;font-family:Inter,sans-serif;
-  background:var(--bg);color:var(--text);
-  display:flex;flex-direction:column;align-items:center;
-  padding:20px;text-align:center;
+*{box-sizing:border-box;}
+body {
+  margin:0;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
 }
-header{display:flex;flex-direction:column;align-items:center;margin-top:10px;}
-header img{width:90px;height:90px;border-radius:50%;margin-bottom:10px;}
-h1{color:var(--accent);font-size:1.4rem;margin:0;}
-#cameraBox{
-  background:var(--card);padding:20px;border-radius:16px;
-  margin-top:20px;max-width:400px;width:100%;
-  box-shadow:0 0 12px #0007;
+header {
+  text-align: center;
+  margin-bottom: 10px;
 }
-#video{
-  width:100%;border-radius:12px;margin-top:10px;
-  display:none;box-shadow:0 0 8px #000;
+header img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
 }
-#status{margin-top:10px;color:var(--muted);}
-.info{
-  margin-top:15px;background:#0f172a;border-radius:12px;padding:15px;
+h1 {
+  color: var(--accent);
+  margin: 10px 0;
+  font-size: 1.4rem;
 }
-.info h3{color:var(--accent);margin:5px 0;}
-.info p{margin:4px 0;}
-button{
-  background:var(--accent);color:#fff;font-weight:600;
-  border:none;border-radius:10px;padding:12px 20px;
-  margin-top:10px;cursor:pointer;
+#video {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 12px;
+  margin-top: 10px;
+  display: none;
+  box-shadow: 0 0 8px #000;
+}
+.card {
+  background: var(--card);
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 0 12px #0007;
+  max-width: 420px;
+  width: 100%;
+  margin-top: 15px;
+  text-align: center;
+}
+#status {
+  color: var(--muted);
+  margin-top: 10px;
+}
+.info {
+  margin-top: 10px;
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 15px;
+}
+.info h3 {
+  color: var(--accent);
+  margin: 5px 0;
+}
+.info p {
+  margin: 4px 0;
+  color: var(--text);
+}
+button {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  margin-top: 10px;
+  cursor: pointer;
 }
 </style>
 </head>
+
 <body>
 <header>
   <img src="https://cdn-icons-png.flaticon.com/512/1046/1046784.png" alt="Logo">
   <h1>Saídas - Balança Felizola</h1>
 </header>
 
-<div id="cameraBox">
+<div class="card">
   <video id="video" autoplay playsinline muted></video>
   <p id="status">Inicializando câmera...</p>
 
@@ -60,7 +108,7 @@ button{
 </div>
 
 <script type="module">
-import { BrowserMultiFormatReader }
+import { BrowserMultiFormatReader } 
   from "https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/esm/index.min.js";
 
 const video = document.getElementById("video");
@@ -70,70 +118,77 @@ const btnRegistrar = document.getElementById("btnRegistrar");
 let reader = new BrowserMultiFormatReader();
 let produtoAtual = null;
 
-// 🚀 Inicia a câmera automaticamente
+// 🚀 Ao carregar a página, tenta abrir a câmera automaticamente
 window.addEventListener("load", async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" }, width:{ideal:1280}, height:{ideal:720} },
+      video: { facingMode: { ideal: "environment" } },
       audio: false
     });
+
     video.srcObject = stream;
     await video.play();
     video.style.display = "block";
     statusTxt.innerText = "Câmera ativa ✅ Aponte para o código da etiqueta.";
+
     iniciarLeitura();
   } catch (err) {
-    console.error("Erro ao acessar câmera:", err);
-    statusTxt.innerHTML = `⚠️ Não foi possível abrir a câmera.<br>${err.name}: ${err.message}`;
+    console.error("Erro câmera:", err);
+    statusTxt.innerHTML = `
+      ⚠️ Não foi possível abrir a câmera.<br>
+      Verifique permissões no navegador.<br><br>
+      Erro: ${err.name} - ${err.message}
+    `;
   }
 });
 
-// 🔍 Leitura automática do código de barras
+// 🔍 Leitura automática de código de barras
 function iniciarLeitura() {
-  reader.decodeFromVideoDevice(null, "video", async (result, err) => {
+  reader.decodeFromVideoDevice(null, 'video', async (result, err) => {
     if (result) {
       const codigo = result.getText().trim();
       console.log("Código lido:", codigo);
       statusTxt.innerText = "Código detectado: " + codigo;
       await buscarProduto(codigo);
-      reader.reset();
+      reader.reset(); // pausa após leitura (remova se quiser contínuo)
     }
   });
 }
 
-// 📦 Busca o produto
-async function buscarProduto(codigo){
+// 📦 Busca produto no backend
+async function buscarProduto(codigo) {
   try {
     const res = await fetch(`/api/ler?codigo=${codigo}`);
     const data = await res.json();
-    if(data.nome){
+
+    if (data.nome) {
       produtoAtual = data;
-      infoBox.style.display="block";
-      document.getElementById("nome").innerText=data.nome;
-      document.getElementById("peso").innerText=data.pesoKg.toFixed(3);
-      document.getElementById("preco").innerText=data.valor.toFixed(2);
+      infoBox.style.display = "block";
+      document.getElementById("nome").innerText = data.nome;
+      document.getElementById("peso").innerText = data.pesoKg.toFixed(3);
+      document.getElementById("preco").innerText = data.valor.toFixed(2);
     } else {
-      statusTxt.innerText="Produto não encontrado.";
+      statusTxt.innerText = "Produto não encontrado.";
     }
-  } catch (err) {
-    alert("Erro ao buscar produto: " + err);
+  } catch (e) {
+    alert("Erro ao buscar produto: " + e);
   }
 }
 
-// 💾 Registra a saída
-btnRegistrar.addEventListener("click", async()=>{
-  if(!produtoAtual) return;
+// 💾 Registrar saída
+btnRegistrar.addEventListener("click", async () => {
+  if (!produtoAtual) return;
   const resp = await fetch("/api/registrar", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(produtoAtual)
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(produtoAtual)
   });
   const data = await resp.json();
-  if(data.ok){
-    alert("✅ Saída registrada com sucesso!");
-    infoBox.style.display="none";
-    produtoAtual=null;
-    statusTxt.innerText="Pronto para novo código.";
+  if (data.ok) {
+    alert("✅ Saída registrada!");
+    infoBox.style.display = "none";
+    produtoAtual = null;
+    statusTxt.innerText = "Pronto para novo código.";
     iniciarLeitura();
   } else {
     alert("⚠️ Erro ao registrar saída!");
